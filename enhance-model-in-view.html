@@ -1,0 +1,87 @@
+<html>
+  <head>
+    <script src="libs/jquery-1.7.1.js"></script>
+    <script src="libs/underscore.js"></script>
+    <script src="libs/backbone.js"></script>
+  </head>
+  <body>
+    <div id="main">
+    </div>
+
+    <script id="main-template" type="x-tmpl">
+      <p>Total <%= total %></p>
+      <p>Min <%= min %> </p>
+      <p>Max <%= max %> </p>
+      Values are:
+      <ul><!-- Inject values here --></ul>
+    </script>
+
+    <script>
+      var MyModel = Backbone.Model.extend({});
+
+      MyCollection = Backbone.Collection.extend({
+        model: MyModel,
+
+        toTemplateObject: function(){
+          return _.extend({}, this.toJSON(), {
+            length: this.length,
+
+            max: this.max(function(model){
+              return model.get('value');
+            }).get('value'),
+
+            min: this.min(function(model){
+              return model.get('value');
+            }).get('value'),
+
+            total: this.map(function(model){
+              return model.get('value');
+            }).reduce(function(a,b){
+              return a + b;
+            })
+          });
+        }
+      });
+
+      var MyView = Backbone.View.extend({
+        collection: null, //injected
+
+        el: '#main',
+
+        template: _.template($('#main-template').html()),
+
+        render: function(){
+          var $el = $(this.el);
+          $el.html(this.template(this.collection.toTemplateObject()));
+          var $ul = this.$('ul');
+          this.collection.each(function(model){
+            $ul.append(new MyModelView({model: model}).render().el);
+          });
+          return this;
+        }
+      });
+
+      var MyModelView = Backbone.View.extend({
+        model: null, //injected
+        render: function(){
+          $(this.el).html(this.model.get('value'));
+          return this;
+        }
+      });
+
+      var collection = window.collection = new MyCollection();
+      collection.reset(collection.parse([
+        {value: 13},
+        {value: 1},
+        {value: 5},
+        {value: 9},
+        {value: 6},
+        {value: 19},
+      ]));
+
+      var view = window.view = new MyView({
+        collection: collection
+      }).render();
+    </script>
+  </body>
+</html>
