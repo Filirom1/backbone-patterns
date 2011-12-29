@@ -1,0 +1,130 @@
+<html>
+  <head>
+    <script src="libs/jquery-1.7.1.js"></script>
+    <script src="libs/underscore.js"></script>
+    <script src="libs/backbone.js"></script>
+  </head>
+  <body>
+    <div id="main">
+
+    </div>
+
+    <script id="ubber-template" type="x-tmpl">
+      <p> <%= content %> </p>
+      <p> Id is <%= id %> </p>
+      <ul>
+      </ul>
+      <p> A total of <%= length %> objects </p>
+      <input type="button" name="refresh" value="Refresh Me"/>
+    </script>
+
+    <script id="model-template" type="x-tmpl">
+      <%= name %>
+    </script>
+
+    <script>
+      var MyModel = Backbone.Model.extend({})
+
+      var MyCollection = Backbone.Collection.extend({
+        model: MyModel,
+
+        sync: function(method, model, options){
+          console.log('SYNC /' + this.ubberModelId + '/collection');
+          return options.success([{name: 'Toto'}]);
+        }
+      });
+
+      var MyUbberModel = Backbone.Model.extend({
+        initialize: function(attributes, options){
+          var collection = this.get('collection');
+          // we need to bind the collection events(add or reset) on this model
+          collection.bind('reset', function(){ this.trigger('change:collection'); }, this)
+
+          // we often need a reference on the parent id
+          collection.ubberModelId = this.id;
+        },
+
+        toTemplateObject: function(){
+          return _.extend({}, this.toJSON(), {
+            length: this.get('collection').length
+          });
+        }
+      });
+
+      var MyUbberView = Backbone.View.extend({
+        model: null, //injected
+
+        el: '#main',
+
+        events: {
+          'click [name="refresh"]': 'onRefresh'
+        },
+
+        initialize: function(){
+          _.bindAll(this);
+          this.model.bind('change:collection', this.render);
+        },
+
+        template: _.template($('#ubber-template').html()),
+
+        render: function(){
+          $(this.el).html(this.template(this.model.toTemplateObject()));
+          new MyCollectionView({
+            el: this.$('ul'),
+            collection: this.model.get('collection')
+          }).render();
+          return this;
+        },
+
+        onRefresh: function(){
+          this.model.get('collection').fetch();
+        }
+      });
+
+      var MyCollectionView = Backbone.View.extend({
+        el: null, //injected
+
+        collection: null, //injected
+
+        render: function(){
+          $el = $(this.el);
+          $el.empty();
+          this.collection.each(function(model){
+            $el.append(new MyModelView({model: model}).render().el);
+          });
+          return this;
+        }
+      });
+
+    var MyModelView = Backbone.View.extend({
+      tagName: 'li',
+
+      model: null, //injected
+
+      template: _.template($('#model-template').html()),
+
+      render: function(){
+        $(this.el).html(this.template(this.model.toJSON()))
+        return this;
+      }
+    });
+
+      var collection = window.collection = new MyCollection();
+      collection.reset(collection.parse([
+        {name: 'Romain'},
+        {name: 'Thomas'},
+        {name: 'Hector'}
+      ]));
+
+      var ubberModel = window.ubberModel = new MyUbberModel({
+        id: 12,
+        content: 'The master model',
+        collection: collection
+      });
+
+      var ubberView = window.ubberView = new MyUbberView({
+        model: ubberModel
+      }).render();
+    </script>
+  </body>
+</html>
