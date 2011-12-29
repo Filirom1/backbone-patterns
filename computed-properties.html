@@ -1,0 +1,84 @@
+<html>
+  <head>
+    <script src="libs/jquery-1.7.1.js"></script>
+    <script src="libs/underscore.js"></script>
+    <script src="libs/backbone.js"></script>
+  </head>
+  <body>
+
+    <div id="el">
+      <label>First Name</label><input name="firstName"/><br />
+      <label>Last Name</label><input name="lastName"/><br />
+      <label>Full Name</label><input name="fullName"/><br />
+
+      Hello <span data-bind="fullName"></span>
+    </div>
+
+    <script>
+    // How to imit EmberJs/Knockout with Backbone (a very light imitation)
+
+    // Computed properties
+      var MyModel = Backbone.Model.extend({
+        initialize: function(){
+          _.bindAll(this);
+          this.bind('change', this.updateFullName);
+
+          //Force default value
+          this.updateFullName();
+        },
+
+        updateFullName: function(){
+          var fullName = this.get('firstName') + ' ' + this.get('lastName') ;
+          this.set({fullName: fullName});
+          return fullName;
+        }
+      });
+
+
+      // Auto Updating View
+      var MyView = Backbone.View.extend({
+        el: '#el',
+        events: {
+          'change input': 'onChange'
+        },
+
+        initialize: function(){
+          _.bindAll(this);
+          this.model.bind('change', this.onModelChange);
+          this.onModelChange(this.model, {force: true});
+        },
+
+        onModelChange: function(model, options){
+          var keys = _(model.attributes).keys();
+          _(keys).each(function(key){
+            if(!model.hasChanged(key) && !options.force) return;
+            $('[name="' + key + '"]').val(model.get(key));
+            $('[data-bind="' + key + '"]').text(model.get(key));
+          }, this);
+        },
+
+        onChange: function(event){
+          var $target = $(event.target);
+          var key = $target.attr('name');
+          var val = $target.val();
+          if(this.model.get(key) === val) return;
+          var attributes = {};
+          attributes[key] = val;
+          this.model.set(attributes);
+        }
+      });
+
+      /* Start playing now */
+      var model = window.model = new MyModel({
+        firstName: 'Romain',
+        lastName: 'Philibert'
+      });
+
+      var view = window.view = new MyView({model: model});
+
+      console.log(model.get('fullName'));
+      model.set({firstName: 'Thomas'});
+      console.log(model.get('fullName'));
+    </script>
+  </body>
+</html>

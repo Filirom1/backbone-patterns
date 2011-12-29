@@ -1,0 +1,119 @@
+<html>
+  <head>
+    <script src="libs/jquery-1.7.1.js"></script>
+    <script src="libs/underscore.js"></script>
+    <script src="libs/backbone.js"></script>
+  </head>
+  <body>
+    <div id="el">
+      <ul><!-- collection injected here --></ul>
+      <input type="button" name="refresh" value='Refresh'/>
+      <input type="button" name="incAge" value='Increment Age'/>
+    </div>
+
+    <script id="collection-template" type="x-tmpl">
+      <%= name %> - <%= age %>
+    </script>
+
+    <script>
+      var MyModel = Backbone.Model.extend({
+        inc: function(){
+          var age = this.get('age');
+          this.set({age: age + 1 });
+        }
+      });
+
+      var MyCollection = Backbone.Collection.extend({
+        model: MyModel
+      });
+
+      var MyView = Backbone.View.extend({
+        model: null, //injected
+
+        tagName: 'li',
+
+        template: _.template($('#collection-template').html()),
+
+        initialize: function(){
+          _.bindAll(this);
+          this.model.bind('change', this.render);
+        },
+
+        destroy: function(){
+          this.model.unbind('change', this.render);
+        },
+
+        render: function(){
+          console.log('render model ' + this.model.cid);
+          $(this.el).html(this.template(this.model.toJSON()));
+
+          // In render bind the view to an HTML element.
+          $(this.el).attr('data-view','destroyable').data('view', this);
+          return this;
+        }
+      });
+
+      var MyCollectionView = Backbone.View.extend({
+        collection: null, //injected
+
+        el: '#el',
+
+        events: {
+          'click [name="refresh"]': 'render',
+          'click [name="incAge"]':  'incAge'
+        },
+
+        initialize: function(){
+          _.bindAll(this);
+          this.collection.bind('reset', this.render);
+        },
+
+        // Before remove, destroy views attached in the inner HTML
+        remove: function(options){
+          var $el = options.$el || $(this.el);
+          $el.find('[data-view="destroyable"]').each(function(){
+            var innerView = $(this).data('view');
+            innerView.destroy();
+          });
+          $el.empty();
+        },
+
+        render: function(){
+          console.log('render collection');
+          var $el = this.$('ul');
+          this.remove({$el: $el});
+          this.collection.each(function(model){
+            this.onAdd(model, this, {$el: $el});
+          }, this);
+          return this;
+        },
+
+        onAdd: function(model, collection, options){
+          var $el = options.$el || $(this.el);
+          $el.append(new MyView({model: model}).render().el);
+        },
+
+        incAge: function(){
+          this.collection.each(function(model){
+            model.inc();
+          });
+        }
+      });
+
+      var collection = window.collection = new MyCollection();
+
+      var data = [
+        {name: 'Romain', age: 25},
+        {name: 'Thomas', age: 25},
+        {name: 'Hector', age: 25}
+      ];
+      collection.reset(collection.parse(data));
+
+      var collectionView = new MyCollectionView({collection: collection});
+      collectionView.render();
+
+      console.log(collection);
+
+    </script>
+  </body>
+</html>
